@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Neurona artificial spiking (LIF)</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: #ffffff;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  p.subtitle { color: #666; font-size: 14px; margin-top: 0; margin-bottom: 24px; }
+  svg { max-width: 700px; width: 100%; }
+  .panel { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  button {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #333; }
+  button:active { transform: scale(0.98); }
+  #stats { font-size: 14px; color: #444; }
+  .controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: center; }
+</style>
+</head>
+<body>
+
+<h1>Neurona artificial spiking &mdash; modelo Leaky Integrate-and-Fire (LIF)</h1>
+<p class="subtitle">Cada impulso acumula voltaje. Al superar el umbral, la neurona dispara un pico y se reinicia &mdash; igual que en un chip neuromorfico.</p>
+
+<div class="panel">
+
+  <svg id="neuron-svg" viewBox="0 0 680 150">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <line x1="40" y1="75" x2="120" y2="45" stroke="#1a1a1a" stroke-width="1"/>
+    <line x1="40" y1="75" x2="120" y2="75" stroke="#1a1a1a" stroke-width="1"/>
+    <line x1="40" y1="75" x2="120" y2="105" stroke="#1a1a1a" stroke-width="1"/>
+    <circle id="soma" cx="160" cy="75" r="38" fill="#f1efe8" stroke="#5f5e5a" stroke-width="1"/>
+    <text x="160" y="75" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#1a1a1a">soma</text>
+    <line id="axon" x1="198" y1="75" x2="260" y2="75" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </svg>
+
+  <svg id="chart" viewBox="0 0 680 200">
+    <line x1="40" y1="30" x2="640" y2="30" stroke="#999" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="46" y="24" font-size="12" fill="#666">umbral</text>
+    <line x1="40" y1="170" x2="640" y2="170" stroke="#ccc" stroke-width="1"/>
+    <polyline id="trace" fill="none" stroke="#378ADD" stroke-width="2" points=""/>
+    <g id="spikes"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="addSpike()">Enviar impulso de entrada</button>
+    <span id="stats">voltaje: 0.00 &middot; disparos: 0</span>
+  </div>
+
+</div>
+
+<script>
+let V = 0;
+const decay = 0.93;
+const step = 0.32;
+const threshold = 1.0;
+let spikeCount = 0;
+let history = [];
+const N = 90;
+for (let i = 0; i < N; i++) history.push(0);
+
+function render() {
+  const x0 = 40, x1 = 640, top = 30, bottom = 170;
+  const pts = history.map((v, i) => {
+    const x = x0 + (i / (N - 1)) * (x1 - x0);
+    const y = bottom - v * (bottom - top);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  document.getElementById('trace').setAttribute('points', pts);
+  document.getElementById('stats').textContent = "voltaje: " + V.toFixed(2) + " · disparos: " + spikeCount;
+}
+
+function flashNeuron() {
+  const soma = document.getElementById('soma');
+  soma.setAttribute('fill', '#FAC775');
+  soma.setAttribute('stroke', '#854F0B');
+  setTimeout(() => {
+    soma.setAttribute('fill', '#f1efe8');
+    soma.setAttribute('stroke', '#5f5e5a');
+  }, 250);
+  const axon = document.getElementById('axon');
+  axon.setAttribute('stroke', '#854F0B');
+  setTimeout(() => axon.setAttribute('stroke', '#1a1a1a'), 250);
+}
+
+function addSpikeMark(i) {
+  const x0 = 40, x1 = 640, top = 30;
+  const x = x0 + (i / (N - 1)) * (x1 - x0);
+  const g = document.getElementById('spikes');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', x); line.setAttribute('x2', x);
+  line.setAttribute('y1', top - 12); line.setAttribute('y2', top);
+  line.setAttribute('stroke', '#854F0B'); line.setAttribute('stroke-width', '2');
+  g.appendChild(line);
+  setTimeout(() => line.remove(), 4000);
+}
+
+function tick() {
+  V *= decay;
+  history.push(Math.min(V, threshold));
+  history.shift();
+  render();
+}
+setInterval(tick, 150);
+
+function addSpike() {
+  V += step;
+  if (V >= threshold) {
+    V = 0;
+    spikeCount++;
+    flashNeuron();
+    history.push(1);
+    history.shift();
+    addSpikeMark(N - 1);
+  }
+  render();
+}
+render();
+</script>
+
+</body>
+</html>
